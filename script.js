@@ -5,41 +5,40 @@ const CX = env.cx;
 const start = new Date();
 const request = require('request');
 const fs = require('fs');
-console.log(env);
-console.log(KEY);
-console.log(CX);
 
 
 //readfile
-/*
 let file = new Promise((resolve, reject) => {
     fs.readFile('./q5.jpeg', (err, data) => {
         if (err) reject()
-
         let base64Image = new Buffer(data, 'binary').toString('base64');
         resolve(base64Image);
     });
 });
-//gettext
+
+    //gettext
 let rawtext = file.then((base64Image) => {
     return imgToText(base64Image);
 });
-//parsetext
+
+    //parsetext
 let qna = rawtext.then((text) => {
     return parseText(text);
 });
-//googlesearch
+
+    //googlesearch
 let searchResults1 = qna.then((qna) => {
     console.log(qna);
     return googleSearch1(qna);
 })
-//analyzeresults
+
+    //analyzeresults
 let output = Promise.all([searchResults1, qna]).then((values) => {
     let x=analyzeResults(values[0], values[1].a, values[1].b, values[1].c);
     console.log(new Date-start);
 });
 
-*/
+
 
 
 
