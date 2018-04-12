@@ -1,16 +1,22 @@
+const env = require('./environment');
+const KEY = env.key;
+const CX = env.cx;
+
 const start = new Date();
 const request = require('request');
 const fs = require('fs');
-const KEY = 'AIzaSyBkTPNp1bTdzH0X_hxyMzbKzPUe09IScbc';
-const CX = '010000498642612381037:hy1hxhhibc0';
-let base64Image = "";
+console.log(env);
+console.log(KEY);
+console.log(CX);
+
 
 //readfile
+/*
 let file = new Promise((resolve, reject) => {
-    fs.readFile('./q9.jpeg', (err, data) => {
+    fs.readFile('./q5.jpeg', (err, data) => {
         if (err) reject()
 
-        base64Image = new Buffer(data, 'binary').toString('base64');
+        let base64Image = new Buffer(data, 'binary').toString('base64');
         resolve(base64Image);
     });
 });
@@ -33,7 +39,7 @@ let output = Promise.all([searchResults1, qna]).then((values) => {
     console.log(new Date-start);
 });
 
-
+*/
 
 
 
@@ -76,7 +82,7 @@ function parseText(str) {
     let booli = false;
     let strarr = str.split('\n');
     for (let i = 0; i < strarr.length; i++) {
-        if (strarr[i].indexOf('PM')>0) {
+        if (strarr[i].indexOf('PM') > 0) {
 
             for (let j = i + 3; j < strarr.length; j++) {
                 let qend = strarr[j].indexOf("?");
