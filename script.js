@@ -2,22 +2,18 @@ const env = require('./environment');
 const KEY = env.key;
 const CX = env.cx;
 const start = new Date();
-const request = require('request');
-const fs = require('fs');
 const filename = 'q9.jpeg';
 
+let request = require('request');
+let cheerio = require('cheerio');
+let fs = require('fs');
 
 
 let questionAnswers = OCR(filename);
-let searchResults1 = gSearch1(questionAnswers);
-let output1 = analyzeResults1(searchResults1, questionAnswers);
-questionAnswers.then(console.log);
-//output1.then(console.log);
-output1.then(()=>{
-
-    console.log('output1 finished : ' + (new Date-start)+'(ms)')
-})
-
+let gResults = gSearch(questionAnswers);
+let output1 = shallowAnalysis(gResults, questionAnswers);
+let linkData = gResults.then(linkSearch);
+let output2 = deepAnalysis(linkData, questionAnswers);
 
 
 
@@ -33,7 +29,7 @@ function OCR(filename) {
         });
 }
 
-function gSearch1(q_a) {
+function gSearch(q_a) {
     return q_a
         .then(googleSearch1)
         .then((results) => {
@@ -45,11 +41,28 @@ function gSearch1(q_a) {
         });
 }
 
-function analyzeResults1(s_r, q_a) {
+function shallowAnalysis(s_r, q_a) {
     return Promise.all([s_r, q_a]).then((values) => {
-        return analyzeResults(values[0], values[1]);
+        let results = values[0].items.map((item) => item.snippet);
+        return subsetFrequency(results, values[1]);
     });
 }
+
+
+function deepAnalysis(linkData, questionAnswers) {
+    return linkData.then((arr) => {
+        arr.push(questionAnswers);
+        Promise.all(arr).then((values) => {
+            let results = values.slice(0, values.length - 2);
+            let q_a = values[values.length - 1];
+            fullFrequency(results, q_a);
+        });
+    });
+
+}
+
+
+
 
 
 
@@ -148,26 +161,100 @@ function googleSearch1(qan) {
     return promise;
 
 }
+let test = ['https://medium.com/@tobymellor/hq-trivia-using-bots-to-win-money-from-online-game-shows-ce2a1b11828b']
 
-function analyzeResults(results, qna) {
+
+function linkSearch(results) {
+
+    let res = results.items.slice(0, 4).map((item) => {
+        let promise = new Promise((resolve, reject) => {
+            let options = {
+                method: 'GET',
+                url: item.link,
+                headers: {
+                    'cache-control': 'no-cache'
+                }
+            };
+            request(options, function(error, response, body) {
+                if (error) reject();
+                let $ = cheerio.load(body);
+                let a = $('p').text();
+                resolve(a);
+
+
+
+
+            });
+        });
+        return promise;
+
+
+    });
+
+    return res;
+
+}
+
+function subsetFrequency(results, qna) {
+
+    let a = qna.a
+    if (a.length > 6) {
+        a = a.substring(0, a.length - 2);
+    }
+    let b = qna.b
+    if (b.length > 6) {
+        b = b.substring(0, b.length - 2);
+    }
+    let c = qna.c
+    if (c.length > 6) {
+        c = c.substring(0, c.length - 2);
+    }
+    let freq = { 'a': 0, 'b': 0, 'c': 0 }
+    results.forEach((item) => {
+
+        let regexa = new RegExp(a, 'gi');
+        let regexb = new RegExp(b, 'gi');
+        let regexc = new RegExp(c, 'gi');
+        freq['a'] += (item.match(regexa) || []).length;
+        freq['b'] += (item.match(regexb) || []).length;
+        freq['c'] += (item.match(regexc) || []).length;
+
+    });
+    let tot = Object.values(freq).reduce((a, b) => { return a + b; });
+    console.log('Subset Frequency');
+    console.log(a + ' = ' + (freq['a'] / tot));
+    console.log(b + ' = ' + (freq['b'] / tot));
+    console.log(c + ' = ' + (freq['c'] / tot));
+    return [freq['a'], freq['b'], freq['c'], tot];
+}
+
+function fullFrequency(results, qna) {
     let a = qna.a
     let b = qna.b
     let c = qna.c
     let freq = { 'a': 0, 'b': 0, 'c': 0 }
-    results.items.forEach((item) => {
+    results.forEach((item) => {
         let regexa = new RegExp(a, 'gi');
         let regexb = new RegExp(b, 'gi');
         let regexc = new RegExp(c, 'gi');
-        freq['a'] += (item.snippet.match(regexa) || []).length;
-        freq['b'] += (item.snippet.match(regexb) || []).length;
-        freq['c'] += (item.snippet.match(regexc) || []).length;
+        freq['a'] += (item.match(regexa) || []).length;
+        freq['b'] += (item.match(regexb) || []).length;
+        freq['c'] += (item.match(regexc) || []).length;
 
     });
     let tot = Object.values(freq).reduce((a, b) => { return a + b; });
-    console.log(a+' = ' + (freq['a'] / tot));
-    console.log(b+' = ' + (freq['b'] / tot));
-    console.log(c+' = ' + (freq['c'] / tot));
-    return [(freq['a'] / tot), (freq['b'] / tot), (freq['c'] / tot)];
+    console.log('Full frequency');
+    console.log(a + ' = ' + (freq['a'] / tot));
+    console.log(b + ' = ' + (freq['b'] / tot));
+    console.log(c + ' = ' + (freq['c'] / tot));
+    return [freq['a'], freq['b'], freq['c'], tot];
 }
 
-
+function adjustedFrequency(results, qna) {
+    let full = fullFrequency(results, qna);
+    let subset = subsetFrequency(results, qna);
+    let adj = full.map((e, i) => {
+        return e + subset[i] * 0.4;
+    });
+    return adj;
+}
