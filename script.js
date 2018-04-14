@@ -2,32 +2,58 @@ const env = require('./environment');
 const KEY = env.key;
 const CX = env.cx;
 const start = new Date();
-const filename = 'q9.jpeg';
+const filename = 'qqq.png';
 
 let request = require('request');
 let cheerio = require('cheerio');
 let fs = require('fs');
+let screenshot = require('screenshot-node');
+
+screenshot.saveScreenshot(0, 20, 420, 550, './qqq.png', () => {
+    console.log('screenshot taken');
+
+    let questionAnswers = OCR(filename);
+    questionAnswers.then(console.log);
+    let gResults = gSearch(questionAnswers);
+    let output1 = shallowAnalysis(gResults, questionAnswers);
+    let linkData = gResults.then(linkSearch);
+    let output2 = deepAnalysis(linkData, questionAnswers);
+    output1.then(() => {
+        console.log(new Date - start);
+    });
+    output2.then(() => {
+        console.log(new Date - start);
+    });
+});
 
 
-/*parameters:
-# of links to search          range (0,5)
-minimum subset string length  range (5,10)
-subset frequency weight       range (0.1,0.9)
+/*
+
+parameters:
+    # of links to search          range (0,5)
+    minimum subset string length  range (5,10)
+    subset frequency weight       range (0.1,0.9)
+
+
+problems:
+    Multi word Answers
+    unnecessarily hyphenated answers
+
+considerations:
+
+    should google results snippets be weighted higher than link body <p> data?
+
+To Do:
+    add function totalAnalyze(qna,num_links, min_sub, sub_freq)
+    add questionFrequency Analysis
+
+
 */
 
-//should google results snippets be weighted higher than link body <p> data?
 
-let questionAnswers = OCR(filename);
-let gResults = gSearch(questionAnswers);
-let output1 = shallowAnalysis(gResults, questionAnswers);
-output1.then(()=>{
-    console.log(new Date-start);
-});
-let linkData = gResults.then(linkSearch);
-let output2 = deepAnalysis(linkData, questionAnswers);
-output2.then(()=>{
-    console.log(new Date - start);
-});
+
+
+
 
 
 function OCR(filename) {
@@ -179,7 +205,7 @@ let test = ['https://medium.com/@tobymellor/hq-trivia-using-bots-to-win-money-fr
 
 function linkSearch(results) {
 
-    let res = results.items.slice(0, 4).map((item) => {
+    let res = results.items.slice(0, 3).map((item) => {
         let promise = new Promise((resolve, reject) => {
             let options = {
                 method: 'GET',
@@ -234,11 +260,21 @@ function subsetFrequency(results, qna) {
 
     });
     let tot = Object.values(freq).reduce((a, b) => { return a + b; });
-    console.log('Subset Frequency');
-    console.log(a + ' = ' + (freq['a'] / tot));
-    console.log(b + ' = ' + (freq['b'] / tot));
-    console.log(c + ' = ' + (freq['c'] / tot));
-    return [freq['a'], freq['b'], freq['c'], tot];
+
+    if (tot == 0) {
+        console.log('Subset frequency');
+        console.log(a + ' = ' + 0);
+        console.log(b + ' = ' + 0);
+        console.log(c + ' = ' + 0);
+        return [0, 0, 0, 0];
+    } else {
+        console.log('Subset Frequency');
+        console.log(a + ' = ' + (freq['a'] / tot));
+        console.log(b + ' = ' + (freq['b'] / tot));
+        console.log(c + ' = ' + (freq['c'] / tot));
+        return [freq['a'], freq['b'], freq['c'], tot];
+    }
+
 }
 
 function fullFrequency(results, qna) {
@@ -256,11 +292,21 @@ function fullFrequency(results, qna) {
 
     });
     let tot = Object.values(freq).reduce((a, b) => { return a + b; });
-    console.log('Full frequency');
-    console.log(a + ' = ' + (freq['a'] / tot));
-    console.log(b + ' = ' + (freq['b'] / tot));
-    console.log(c + ' = ' + (freq['c'] / tot));
-    return [freq['a'], freq['b'], freq['c'], tot];
+
+    if (tot == 0) {
+        console.log('Full frequency');
+        console.log(a + ' = ' + 0);
+        console.log(b + ' = ' + 0);
+        console.log(c + ' = ' + 0);
+        return [0, 0, 0, 0];
+    } else {
+        console.log('Full frequency');
+        console.log(a + ' = ' + (freq['a'] / tot));
+        console.log(b + ' = ' + (freq['b'] / tot));
+        console.log(c + ' = ' + (freq['c'] / tot));
+        return [freq['a'], freq['b'], freq['c'], tot];
+    }
+
 }
 
 function adjustedFrequency(results, qna) {
@@ -269,5 +315,5 @@ function adjustedFrequency(results, qna) {
     let adj = full.map((e, i) => {
         return e + subset[i] * 0.4;
     });
-    return adj;
+    returnadj;
 }
