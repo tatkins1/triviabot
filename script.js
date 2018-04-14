@@ -9,12 +9,25 @@ let cheerio = require('cheerio');
 let fs = require('fs');
 
 
+/*parameters:
+# of links to search          range (0,5)
+minimum subset string length  range (5,10)
+subset frequency weight       range (0.1,0.9)
+*/
+
+//should google results snippets be weighted higher than link body <p> data?
+
 let questionAnswers = OCR(filename);
 let gResults = gSearch(questionAnswers);
 let output1 = shallowAnalysis(gResults, questionAnswers);
+output1.then(()=>{
+    console.log(new Date-start);
+});
 let linkData = gResults.then(linkSearch);
 let output2 = deepAnalysis(linkData, questionAnswers);
-
+output2.then(()=>{
+    console.log(new Date - start);
+});
 
 
 function OCR(filename) {
@@ -52,10 +65,10 @@ function shallowAnalysis(s_r, q_a) {
 function deepAnalysis(linkData, questionAnswers) {
     return linkData.then((arr) => {
         arr.push(questionAnswers);
-        Promise.all(arr).then((values) => {
+        return Promise.all(arr).then((values) => {
             let results = values.slice(0, values.length - 2);
             let q_a = values[values.length - 1];
-            fullFrequency(results, q_a);
+            return fullFrequency(results, q_a);
         });
     });
 
