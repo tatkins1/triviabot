@@ -2,28 +2,40 @@ const env = require('./environment');
 const KEY = env.key;
 const CX = env.cx;
 const start = new Date();
-const filename = 'qqq.png';
+const filename = 'qc.png';
+let current = start;
 
 let request = require('request');
 let cheerio = require('cheerio');
 let fs = require('fs');
 let screenshot = require('screenshot-node');
 
-screenshot.saveScreenshot(0, 20, 420, 550, './qqq.png', () => {
+screenshot.saveScreenshot(30, 177, 364, 341, './qqq.png', () => {
     console.log('screenshot taken');
 
+
     let questionAnswers = OCR(filename);
-    questionAnswers.then(console.log);
     let gResults = gSearch(questionAnswers);
     let output1 = shallowAnalysis(gResults, questionAnswers);
-    let linkData = gResults.then(linkSearch);
-    let output2 = deepAnalysis(linkData, questionAnswers);
+    let output2 = deepAnalysis(gResults, questionAnswers);
+
+// logg
+    questionAnswers.then((a) => {
+        console.log('OCR' + (new Date - start)+ '(ms)');
+        console.log(a);
+    });
+    gResults.then(() => {
+        console.log('Google Search' + (new Date - start)+ '(ms)');
+
+    });
     output1.then(() => {
-        console.log(new Date - start);
+        console.log('Shallow Analysis ' + (new Date - start) + '(ms)\n\n\n\n');
+
     });
     output2.then(() => {
-        console.log(new Date - start);
+        console.log('Deep Analysis ' + (new Date - start) + '(ms)');
     });
+
 });
 
 
@@ -59,7 +71,7 @@ To Do:
 function OCR(filename) {
     return readFile(filename)
         .then(imgToText)
-        .then(parseText)
+        .then(parseText2)
         .then((results) => {
             return results
         })
@@ -83,18 +95,20 @@ function gSearch(q_a) {
 function shallowAnalysis(s_r, q_a) {
     return Promise.all([s_r, q_a]).then((values) => {
         let results = values[0].items.map((item) => item.snippet);
-        return subsetFrequency(results, values[1]);
+        return adjustedFrequency(results, values[1]);
     });
 }
 
 
-function deepAnalysis(linkData, questionAnswers) {
-    return linkData.then((arr) => {
+function deepAnalysis(gResults, questionAnswers) {
+    let now = new Date();
+    return gResults.then(linkSearch).then((arr) => {
         arr.push(questionAnswers);
         return Promise.all(arr).then((values) => {
+            console.log('All http get requests resolved (ms) : '+(new Date - now));
             let results = values.slice(0, values.length - 2);
             let q_a = values[values.length - 1];
-            return fullFrequency(results, q_a);
+            return adjustedFrequency(results, q_a);
         });
     });
 
@@ -139,7 +153,7 @@ function imgToText(imgstr) {
             if (error) {
                 reject()
             }
-            console.log("Image to text (ms)  : " + (new Date() - start));
+
             resolve(body.responses[0].textAnnotations[0].description);
         });
     });
@@ -173,6 +187,30 @@ function parseText(str) {
     return output;
 }
 
+
+function parseText2(str) {
+    let question = '';
+    let a = '';
+    let b = '';
+    let c = '';
+    let str_arr = str.split('\n');
+    for (let i = 0; i < str_arr.length; i++) {
+        question += ' ' + str_arr[i];
+
+
+        let qend = str_arr[i].indexOf('?');
+        if (qend != -1) {
+            a = str_arr[i + 1];
+            b = str_arr[i + 2];
+            c = str_arr[i + 3];
+            break;
+        }
+    }
+
+    let output = { q: question, a: a, b: b, c: c };
+    return output;
+}
+
 function googleSearch1(qan) {
     let options = {
         method: 'GET',
@@ -193,18 +231,14 @@ function googleSearch1(qan) {
             if (error) reject();
 
             resolve(JSON.parse(body));
-
-            console.log("Google Search (ms)  : " + (new Date() - start));
         });
     });
     return promise;
 
 }
-let test = ['https://medium.com/@tobymellor/hq-trivia-using-bots-to-win-money-from-online-game-shows-ce2a1b11828b']
 
 
 function linkSearch(results) {
-
     let res = results.items.slice(0, 3).map((item) => {
         let promise = new Promise((resolve, reject) => {
             let options = {
@@ -272,6 +306,7 @@ function subsetFrequency(results, qna) {
         console.log(a + ' = ' + (freq['a'] / tot));
         console.log(b + ' = ' + (freq['b'] / tot));
         console.log(c + ' = ' + (freq['c'] / tot));
+
         return [freq['a'], freq['b'], freq['c'], tot];
     }
 
@@ -292,7 +327,6 @@ function fullFrequency(results, qna) {
 
     });
     let tot = Object.values(freq).reduce((a, b) => { return a + b; });
-
     if (tot == 0) {
         console.log('Full frequency');
         console.log(a + ' = ' + 0);
@@ -304,6 +338,7 @@ function fullFrequency(results, qna) {
         console.log(a + ' = ' + (freq['a'] / tot));
         console.log(b + ' = ' + (freq['b'] / tot));
         console.log(c + ' = ' + (freq['c'] / tot));
+
         return [freq['a'], freq['b'], freq['c'], tot];
     }
 
@@ -315,5 +350,19 @@ function adjustedFrequency(results, qna) {
     let adj = full.map((e, i) => {
         return e + subset[i] * 0.4;
     });
-    returnadj;
+    if (adj[3] == 0) {
+        console.log('Adj frequency');
+        console.log(qna.a + ' = ' + 0);
+        console.log(qna.b + ' = ' + 0);
+        console.log(qna.c + ' = ' + 0);
+        return [0, 0, 0, 0];
+    } else {
+        console.log('Adj frequency');
+        console.log(qna.a + ' = ' + adj[0] / adj[3]);
+        console.log(qna.b + ' = ' + adj[1] / adj[3]);
+        console.log(qna.c + ' = ' + adj[2] / adj[3]);
+
+        return adj;
+    }
+
 }
